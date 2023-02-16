@@ -6,5 +6,5 @@ CXX_FLAGS =   -std=gnu++1z
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/usr/local/include -isystem /usr/include/opencv 
+CXX_INCLUDES = -I/usr/local/include -I/home/cs18/Documents/Games101HW/Homework3/Assignment3/./include -isystem /usr/include/opencv 
 
