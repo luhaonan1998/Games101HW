@@ -257,30 +257,62 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
 }
 
 //Screen space rasterization
+// Argument view_pos: Triangle vertices coordinates in view space
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
+    auto v = t.toVector4();
+    // lhn: Get Bounding Box 
+	int min_x = floor(std::min(v[0][0], std::min(v[1][0], v[2][0])));
+	int max_x = ceil(std::max(v[0][0], std::max(v[1][0], v[2][0])));
+	int min_y = floor(std::min(v[0][1], std::min(v[1][1], v[2][1])));
+	int max_y = ceil(std::max(v[0][1], std::max(v[1][1], v[2][1])));
+
     // TODO: From your HW3, get the triangle rasterization code.
     // TODO: Inside your rasterization loop:
     //    * v[i].w() is the vertex view space depth value z.
     //    * Z is interpolated view space depth for the current pixel
     //    * zp is depth between zNear and zFar, used for z-buffer
-
     // float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
     // float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
     // zp *= Z;
+    
+    // lhn: Rasteration loop in the bounding box
+    for(int x = min_x; x <= max_x; ++x) {
+        for(int y = min_y; y <= max_y; ++y) {
+            int ind = get_index(x, y);
+            // if pixel center [x + 0.5, y + 0,5] inside the triangle
+            if(insideTriangle(x + 0.5f, y + 0.5f, t.v)) {
+                // calculate interpolated z value
+                auto [alpha, beta, gamma] = computeBarycentric2D(x + 0.5, y + 0.5, t.v);
+                float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                zp *= Z;
+                // visible
+                if(zp < depth_buf[get_index(x, y)]) {
 
-    // TODO: Interpolate the attributes:
-    // auto interpolated_color
-    // auto interpolated_normal
-    // auto interpolated_texcoords
-    // auto interpolated_shadingcoords
+                    auto interpolated_color = interpolate(alpha, beta, gamma, t.color[0], t.color[1], t.color[2], 1);
+                    auto interpolated_normal = interpolate(alpha, beta, gamma, t.normal[0], t.normal[1], t.normal[2], 1);
+                    auto interpolated_texcoords = interpolate(alpha, beta, gamma, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1);
+                    // calculate shadingcoords: why view_pos?
+                    auto interpolated_shadingcoords =  interpolate(alpha, beta, gamma, view_pos[0], view_pos[1], view_pos[2], 1);
+                
 
-    // Use: fragment_shader_payload payload( interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
-    // Use: payload.view_pos = interpolated_shadingcoords;
-    // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
-    // Use: auto pixel_color = fragment_shader(payload);
+                    // Use: fragment_shader_payload payload( interpolated_color, interpolated_normal.normal ized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                    // Use: payload.view_pos = interpolated_shadingcoords;
+                    // Use: Instead of passing the triangle's color directly to the frame buffer, pass the color to the shaders first to get the final color;
+                    // Use: auto pixel_color = fragment_shader(payload);
+                    fragment_shader_payload payload( interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                    payload.view_pos = interpolated_shadingcoords;
+                    auto pixel_color = fragment_shader(payload);
 
- 
+                    // set depth
+                    depth_buf[get_index(x, y)] = zp;
+                    // set color
+                    set_pixel(Eigen::Vector2i(x, y), pixel_color);
+                }
+            }
+        }
+    }
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
