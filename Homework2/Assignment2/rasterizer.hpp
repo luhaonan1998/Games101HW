@@ -76,7 +76,7 @@ namespace rst
 
     private:
         void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end);
-
+        // MSAA
         void rasterize_triangle(const Triangle& t);
 
         // VERTEX SHADER -> MVP -> Clipping -> /.W -> VIEWPORT -> DRAWLINE/DRAWTRI -> FRAGSHADER
@@ -93,6 +93,9 @@ namespace rst
         std::vector<Eigen::Vector3f> frame_buf;
 
         std::vector<float> depth_buf;
+        // MASS
+        std::vector<std::vector<float>> super_depth_buf;
+        std::vector<std::vector<Vector3f>> super_color_buf;
         int get_index(int x, int y);
 
         int width, height;
